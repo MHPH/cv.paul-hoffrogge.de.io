@@ -30,6 +30,8 @@ jobs:
   build:
     name: Build Pages Site
     runs-on: ubuntu-latest
+    env:
+      LANGUAGE_CODE: en
 
     steps:
       # Log use case if triggered manually
@@ -72,6 +74,7 @@ jobs:
           echo "  SOURCE_DIR:      ${SOURCE_DIR}"
           echo "  SITE_DIR:        ${SITE_DIR}"
           echo "  VERSION_TAG:     ${VERSION_TAG}"
+          echo "  LANGUAGE_CODE:   ${LANGUAGE_CODE}"
 
       - name: Checkout source repo
         uses: actions/checkout@v3
@@ -87,17 +90,22 @@ jobs:
         run: |
           mkdir -p ./${{ env.SITE_DIR }}
           cp --verbose -R ${{ env.SOURCE_DIR }}/HTML/Paul/* ${{ env.SITE_DIR }}
+          mv -v ${{ env.SITE_DIR }}/lang/${{ env.LANGUAGE_CODE }}/* ${{ env.SITE_DIR }}
           # Remove files not to publish
-          find ./${{ env.SITE_DIR }} -type f -name 'index-*.html' -print0 | xargs -0 rm -v
-          find ./${{ env.SITE_DIR }} -type f -name 'blog*.html' -print0 | xargs -0 rm -v
-          find ./${{ env.SITE_DIR }} -type f -name '*.php' -print0 | xargs -0 rm -v
-          find ./${{ env.SITE_DIR }} -type f -name '.*' -print0 | xargs -0 rm -v
-          find ./${{ env.SITE_DIR }} -type d -name 'demo' -print0 | xargs -0 rm -v -rf
-          find ./${{ env.SITE_DIR }} -type d -name 'php' -print0 | xargs -0 rm -v -rf
+          # Note: The xargs variant will endup with "rm: missing operand" if there is no file or dir found matching
+          #find ./${{ env.SITE_DIR }} -type f -name 'index-*.html' -print0 | xargs -0 rm -v
+          find ./${{ env.SITE_DIR }} -type f -name 'index-*.html' -exec rm -v {} \;
+          find ./${{ env.SITE_DIR }} -type f -name 'blog*.html' -exec rm -v {} \;
+          find ./${{ env.SITE_DIR }} -type f -name '*.php' -exec rm -v {} \;
+          find ./${{ env.SITE_DIR }} -type f -name '.*' -exec rm -v {} \;
+          find ./${{ env.SITE_DIR }} -type d -name 'demo' -exec rm -vrf {} +
+          find ./${{ env.SITE_DIR }} -type d -name 'php' -exec rm -vrf {} +
+          find ./${{ env.SITE_DIR }} -type d -name 'lang' -exec rm -vrf {} +
           # Create site manifest:
           echo "Origin:    ${{ github.repository }}" > ./${{ env.SITE_DIR }}/MANIFEST.txt
           echo "Buildtime: $(date --rfc-3339=seconds)" >> ./${{ env.SITE_DIR }}/MANIFEST.txt
           echo "Version:   ${{ env.VERSION_TAG }}" >> ./${{ env.SITE_DIR }}/MANIFEST.txt
+          echo "Language:  ${{ env.LANGUAGE_CODE }}" >> ./${{ env.SITE_DIR }}/MANIFEST.txt
 
       - name: Setup Pages
         id: pages
