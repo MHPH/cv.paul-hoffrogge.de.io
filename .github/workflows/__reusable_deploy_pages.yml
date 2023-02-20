@@ -23,6 +23,8 @@ jobs:
   build:
     name: Build Pages Site
     runs-on: ${{ inputs.runner }}
+    env:
+      python-version: '3.8'
 
     steps:
       - name: Abort if reference is not a version tag
@@ -53,6 +55,11 @@ jobs:
           echo "  VERSION_TAG:     ${VERSION_TAG}"
           echo "  LANGUAGE_CODE:   ${LANGUAGE_CODE}"
 
+      - name: Set up Python ${{ env.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.python-version }}
+
       - name: Checkout source repo
         uses: actions/checkout@v3
         with:
@@ -65,9 +72,25 @@ jobs:
 
       - name: Build site content
         run: |
+          # Generate index.html if script to generate does exist:
+          if [[ -f "${{ env.SOURCE_DIR }}/scripts/generate_index_html_${{ env.LANGUAGE_CODE }}.sh" ]]; then
+            CWD=$(pwd)
+            cd ${{ env.SOURCE_DIR }}/scripts
+            ./generate_index_html_${{ env.LANGUAGE_CODE }}.sh
+            cd "$CWD"
+          fi
+
+          # Create site dir
           mkdir -p ./${{ env.SITE_DIR }}
+
+          # Copy all HTML sources to site dir:
           cp --verbose -R ${{ env.SOURCE_DIR }}/HTML/Paul/* ${{ env.SITE_DIR }}
-          mv -v ${{ env.SITE_DIR }}/lang/${{ env.LANGUAGE_CODE }}/* ${{ env.SITE_DIR }}
+
+          # Move language index.html to site dir root index.html, if root index.html does not yet exist in site dir:
+          if [[ ! -f "${{ env.SITE_DIR }}/index.html" ]]; then
+            mv -v ${{ env.SITE_DIR }}/lang/${{ env.LANGUAGE_CODE }}/index.html ${{ env.SITE_DIR }}
+          fi
+
           # Remove files not to publish
           # Note: The xargs variant will endup with "rm: missing operand" if there is no file or dir found matching
           #find ./${{ env.SITE_DIR }} -type f -name 'index-*.html' -print0 | xargs -0 rm -v
